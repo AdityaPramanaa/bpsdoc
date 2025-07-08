@@ -1,0 +1,15 @@
+input_type: post
+username: bpsprov
+password: @bps2025
+hash_db: $2y$10$6kiZSrMEoI5PAfzfrK9BgurNE70WHggwnQWbr40pFLtj7t7YAEs.
+verify: FAIL
+input_type: post
+username: bpsprov
+password: @bps2025
+hash_db: $2y$10$JOggGNGQGO6Yt0vagqw0EOuIojepbpTAZQi6d70Dp0AvnABk95hba
+verify: OK
+input_type: post
+username: bpsprov
+password: @bps2025
+hash_db: $2y$10$JOggGNGQGO6Yt0vagqw0EOuIojepbpTAZQi6d70Dp0AvnABk95hba
+verify: OK
