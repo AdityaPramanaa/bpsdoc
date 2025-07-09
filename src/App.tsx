@@ -7,7 +7,6 @@ import { UploadInterface } from './components/UploadInterface';
 import { AdminPanel } from './components/AdminPanel';
 import { LoginForm } from './components/LoginForm';
 import { Document, User } from './types';
-import { mockDocuments } from './data/mockData';
 import * as XLSX from 'xlsx';
 
 function App() {
@@ -56,26 +55,17 @@ function App() {
   const handleLogin = async (username: string, password: string) => {
     setLoading(true);
     setNotification(null);
-    try {
-      const res = await fetch('/login.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+    if (username === 'bpsprov' && password === '@bps2025') {
+      setUser({
+        id: '1',
+        username,
+        role: 'admin'
       });
-      const data = await res.json();
-      if (data.success) {
-        setUser({
-          id: data.user_id,
-          username,
-          role: data.role
-        });
-        setShowLogin(false);
-        setCurrentView('admin');
-      } else {
-        setNotification({ type: 'error', message: data.error || 'Login gagal.' });
-      }
-    } catch (err) {
-      setNotification({ type: 'error', message: 'Network error.' });
+      setShowLogin(false);
+      setCurrentView('admin');
+      setNotification({ type: 'success', message: 'Login berhasil.' });
+    } else {
+      setNotification({ type: 'error', message: 'Username atau password salah.' });
     }
     setLoading(false);
   };
@@ -167,7 +157,7 @@ function App() {
         const workbook = XLSX.read(data, { type: 'array' });
         const sheets = workbook.SheetNames.map(name => ({
           name,
-          data: XLSX.utils.sheet_to_json(workbook.Sheets[name], { defval: '' })
+          data: XLSX.utils.sheet_to_json(workbook.Sheets[name], { defval: '' }) as Record<string, string | number>[]
         }));
         setViewingDocument({ ...doc, sheets });
       } catch {
