@@ -1,10 +1,10 @@
 <?php
+require 'cloudinary_config.php';
+require 'vendor/autoload.php';
+
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Headers: Content-Type');
-header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
-header('Pragma: no-cache');
-
-require 'cloudinary_config.php';
+header('Content-Type: application/json');
 
 $api = new \Cloudinary\Api\Admin\AdminApi();
 try {

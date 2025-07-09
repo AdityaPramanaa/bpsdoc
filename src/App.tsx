@@ -95,55 +95,65 @@ function App() {
     setCurrentView(view);
   };
 
-  // Upload file ke backend
+  // Upload file ke Cloudinary langsung dari frontend
   const handleUpload = async (files: FileList) => {
     setLoading(true);
     let success = true;
+    const cloudName = 'dqwnckoeu';
+    const uploadPreset = 'bps_unsigned';
+    const url = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('upload_preset', uploadPreset);
       try {
-        const res = await fetch('http://localhost/bps/upload.php', {
+        const res = await fetch(url, {
           method: 'POST',
           body: formData,
         });
         const data = await res.json();
-        if (!data.success) success = false;
+        if (!data.secure_url) success = false;
       } catch {
         success = false;
       }
     }
-    // Tambahkan delay 1 detik agar Cloudinary update
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    await fetchFilesFromBackend();
     setLoading(false);
     setNotification(success
-      ? { type: 'success', message: 'Upload file berhasil.' }
+      ? { type: 'success', message: 'Upload file berhasil ke Cloudinary.' }
       : { type: 'error', message: 'Upload file gagal pada salah satu file.' });
+    if (success) {
+      setTimeout(() => {
+        window.location.reload();
+      }, 500); // beri jeda 0.5 detik agar notifikasi sempat tampil
+    }
   };
 
-  // Hapus file dari backend
+  // Hapus file dari Cloudinary hanya bisa dari dashboard Cloudinary (tidak bisa dari frontend)
   const handleDeleteDocument = async (public_id: string) => {
     setLoading(true);
     let success = true;
-    const formData = new FormData();
-    formData.append('public_id', public_id);
     try {
-      const res = await fetch('http://localhost/bps/delete.php', {
+      const res = await fetch('/.netlify/functions/delete-cloudinary', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ public_id })
       });
       const data = await res.json();
       if (!data.success) success = false;
     } catch {
       success = false;
     }
-    await fetchFilesFromBackend();
+    // Refresh halaman agar data terbaru muncul
     setLoading(false);
     setNotification(success
-      ? { type: 'success', message: 'File berhasil dihapus.' }
-      : { type: 'error', message: 'Gagal menghapus file.' });
+      ? { type: 'success', message: 'File berhasil dihapus dari Cloudinary.' }
+      : { type: 'error', message: 'Gagal menghapus file dari Cloudinary.' });
+    if (success) {
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    }
   };
 
   // Saat user ingin melihat dokumen Excel, download file dari Cloudinary, lalu parse
