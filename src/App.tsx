@@ -34,7 +34,7 @@ function App() {
   const fetchFilesFromBackend = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost/bps/list_files.php');
+      const res = await fetch('/.netlify/functions/list-cloudinary');
       const files = await res.json();
       const docs: Document[] = files.map((file: any) => ({
         id: file.public_id,
