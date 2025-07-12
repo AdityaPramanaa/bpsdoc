@@ -36,15 +36,16 @@ function App() {
     try {
       const res = await fetch('/.netlify/functions/list-cloudinary');
       const files = await res.json();
+      console.log('files from function:', files); // Debug log
       const docs: Document[] = files.map((file: any) => ({
-        id: file.public_id,
-        name: file.original_filename + '.' + file.format,
-        type: file.format === 'pdf' ? 'pdf' : 'excel',
-        size: file.bytes,
-        uploadDate: file.created_at,
+        id: file.public_id || file.asset_id || file.url,
+        name: (file.original_filename || file.public_id) + (file.format ? '.' + file.format : ''),
+        type: file.format === 'pdf' ? 'pdf' : (['xls', 'xlsx'].includes(file.format) ? 'excel' : 'other'),
+        size: file.bytes || 0,
+        uploadDate: file.created_at || '',
         url: file.url,
         public_id: file.public_id,
-      }));
+      })).filter((doc: Document) => doc.url); // filter hanya yang ada url
       setDocuments(docs);
     } catch (e) {
       setNotification({ type: 'error', message: 'Gagal mengambil daftar file dari server.' });
