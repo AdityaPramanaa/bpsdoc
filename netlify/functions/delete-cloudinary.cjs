@@ -15,7 +15,7 @@ exports.handler = async function(event, context) {
     return { statusCode: 400, body: 'No public_id provided' };
   }
   try {
-    await cloudinary.uploader.destroy(public_id, { resource_type: 'auto' });
+    await cloudinary.uploader.destroy(public_id, { resource_type: 'raw' });
     return { statusCode: 200, body: JSON.stringify({ success: true }) };
   } catch (err) {
     return { statusCode: 500, body: JSON.stringify({ success: false, error: err.message }) };
