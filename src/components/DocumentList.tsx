@@ -65,14 +65,14 @@ export const DocumentList: React.FC<DocumentListProps> = ({
       </div>
 
       {/* Documents Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 xs:grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
         {filteredDocuments.map((doc) => (
           <div
             key={doc.id}
             className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 hover:shadow-xl hover:scale-105 transition-all duration-200"
           >
-            <div className="p-4 sm:p-6">
-              <div className="flex items-start justify-between mb-4">
+            <div className="p-3 sm:p-4 md:p-6">
+              <div className="flex flex-col sm:flex-row items-start justify-between mb-3 sm:mb-4 gap-2">
                 <div className="flex items-center min-w-0 flex-1">
                   <div className={`p-2 sm:p-3 rounded-xl flex-shrink-0 ${
                     doc.type === 'pdf' 
@@ -100,8 +100,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
                   </div>
                 </div>
               </div>
-
-              <div className="space-y-2 mb-4">
+              <div className="space-y-2 mb-3 sm:mb-4">
                 <div className="flex items-center text-xs text-gray-500">
                   <HardDrive className="h-3 w-3 mr-1 flex-shrink-0" />
                   <span className="truncate">{formatFileSize(doc.size)}</span>
@@ -111,7 +110,6 @@ export const DocumentList: React.FC<DocumentListProps> = ({
                   <span className="truncate">{formatDate(doc.uploadDate)}</span>
                 </div>
               </div>
-
               <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   onClick={() => onViewDocument(doc)}
