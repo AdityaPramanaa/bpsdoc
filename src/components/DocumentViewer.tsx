@@ -223,6 +223,15 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ currentDocument,
     }
   }, [currentSheetData, currentDocument, activeSheet]);
 
+  // Fungsi untuk memastikan URL PDF Cloudinary benar (raw vs image)
+  const getPdfUrl = (doc: Document) => {
+    if (!doc.url) return '';
+    if (doc.resource_type === 'raw') {
+      return doc.url.replace('/image/upload/', '/raw/upload/');
+    }
+    return doc.url;
+  };
+
   // PDF Viewer UI
   const renderPDFViewer = () => (
     <div className="space-y-6">
@@ -296,7 +305,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ currentDocument,
       {/* PDF Viewer */}
       <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 p-8 flex flex-col items-center">
         <PDFViewerDocument
-          file={currentDocument.url}
+          file={getPdfUrl(currentDocument)}
           onLoadSuccess={onDocumentLoadSuccess}
           loading={<div>Memuat PDF...</div>}
           error={<div className="text-red-600">Gagal memuat PDF.</div>}
@@ -558,7 +567,16 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ currentDocument,
           </div>
         </div>
         
-        <button className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 flex items-center shadow-lg shadow-blue-500/25">
+        <button className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 flex items-center shadow-lg shadow-blue-500/25"
+          onClick={() => {
+            // Download original file
+            const link = document.createElement('a');
+            link.href = getPdfUrl(currentDocument);
+            link.download = currentDocument.name;
+            link.target = '_blank';
+            link.click();
+          }}
+        >
           <Download className="h-4 w-4 mr-2" />
           Download Original
         </button>
