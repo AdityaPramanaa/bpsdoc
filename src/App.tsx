@@ -45,6 +45,7 @@ function App() {
         uploadDate: file.created_at || '',
         url: file.url,
         public_id: file.public_id,
+        resource_type: file.resource_type // <-- tambahkan ini
       })).filter((doc: Document) => doc.url); // filter hanya yang ada url
       setDocuments(docs);
     } catch (e) {
