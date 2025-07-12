@@ -16,22 +16,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
-
-    try {
-      const res = await fetch('/login.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-      const data = await res.json();
-      if (data.success) {
-        onLogin(username, password);
-      } else {
-        setError(data.error || 'Login failed.');
-      }
-    } catch (err) {
-      setError('Network error.');
-    }
+    // Login statis, panggil onLogin langsung
+    onLogin(username, password);
     setIsLoading(false);
   };
 
