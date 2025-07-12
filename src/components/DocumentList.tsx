@@ -34,6 +34,15 @@ export const DocumentList: React.FC<DocumentListProps> = ({
     });
   };
 
+  // Fungsi untuk memastikan URL Cloudinary benar (raw vs image)
+  const getCloudinaryUrl = (doc: Document) => {
+    if (!doc.url) return '';
+    if (doc.resource_type === 'raw') {
+      return doc.url.replace('/image/upload/', '/raw/upload/');
+    }
+    return doc.url;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -119,7 +128,16 @@ export const DocumentList: React.FC<DocumentListProps> = ({
                   <span className="hidden sm:inline">View & Search</span>
                   <span className="sm:hidden">View</span>
                 </button>
-                <button className="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-200 transition-colors flex items-center justify-center sm:w-auto">
+                <button
+                  className="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-200 transition-colors flex items-center justify-center sm:w-auto"
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = getCloudinaryUrl(doc);
+                    link.download = doc.name;
+                    link.target = '_blank';
+                    link.click();
+                  }}
+                >
                   <Download className="h-3 w-3 sm:h-4 sm:w-4" />
                 </button>
               </div>
