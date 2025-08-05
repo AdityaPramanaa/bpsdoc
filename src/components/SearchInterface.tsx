@@ -3,61 +3,11 @@ import { Search, Download, FileText } from 'lucide-react';
 import { Document, SearchResult } from '../types';
 import { downloadSearchResultsAsExcel, downloadSearchResultsAsPDF } from '../utils/downloadUtils';
 import * as XLSX from 'xlsx';
-import { pdfjs } from 'react-pdf';
-
-// Configure PDF.js worker - use multiple fallback options
-const configurePdfWorker = () => {
-  try {
-    // Try CDN first
-    pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
-  } catch (error) {
-    try {
-      // Fallback to unpkg
-      pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
-    } catch (fallbackError) {
-      // Final fallback - use local worker if available
-      pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
-    }
-  }
-};
-
-configurePdfWorker();
 
 interface SearchInterfaceProps {
   documents: Document[];
   onViewDocument: (doc: Document) => void;
 }
-
-// Function to get correct PDF URL from Cloudinary
-const getPdfUrl = (doc: Document): string => {
-  if (!doc.url) return '';
-  // Ensure URL uses correct format for PDF
-  if (doc.resource_type === 'raw') {
-    return doc.url;
-  }
-  // If resource_type is image, change to raw
-  return doc.url.replace('/image/upload/', '/raw/upload/');
-};
-
-// Function to extract text from PDF
-const extractTextFromPDF = async (pdfUrl: string): Promise<string[]> => {
-  try {
-    const pdf = await pdfjs.getDocument(pdfUrl).promise;
-    const textPromises = [];
-    
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      const text = textContent.items.map((item: any) => item.str).join(' ');
-      textPromises.push(text);
-    }
-    
-    return await Promise.all(textPromises);
-  } catch (error) {
-    console.error('Error extracting text from PDF:', error);
-    return [];
-  }
-};
 
 export const SearchInterface: React.FC<SearchInterfaceProps> = ({ documents, onViewDocument }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -118,34 +68,14 @@ export const SearchInterface: React.FC<SearchInterfaceProps> = ({ documents, onV
             console.error(`Error searching Excel file ${doc.name}:`, error);
           }
         } else if (doc.type === 'pdf') {
-          // Extract text from PDF and search
-          try {
-            const pdfUrl = getPdfUrl(doc);
-            const pdfTexts = await extractTextFromPDF(pdfUrl);
-            
-            pdfTexts.forEach((text, pageIndex) => {
-              if (text.toLowerCase().includes(queryLower)) {
-                const pos = text.toLowerCase().indexOf(queryLower);
-                const snippet = text.substring(Math.max(0, pos - 50), pos + queryLower.length + 50);
-                
-                results.push({
-                  file: doc.name,
-                  type: 'pdf',
-                  page: pageIndex + 1,
-                  snippet: snippet
-                });
-              }
-            });
-          } catch (error) {
-            console.error(`Error searching PDF file ${doc.name}:`, error);
-            // Fallback: add a placeholder result
-            results.push({
-              file: doc.name,
-              type: 'pdf',
-              page: 1,
-              snippet: `PDF file detected - ${doc.name} may contain "${searchQuery}" (text extraction failed)`
-            });
-          }
+          // For PDF files, we'll add a placeholder since text extraction requires backend
+          // In a real implementation, you'd need a PDF text extraction service
+          results.push({
+            file: doc.name,
+            type: 'pdf',
+            page: 1,
+            snippet: `PDF file detected - ${doc.name} may contain "${searchQuery}". Use browser's PDF search (Ctrl+F) when viewing.`
+          });
         }
       }
       
