@@ -2,33 +2,147 @@ import React, { useState } from 'react';
 import { Search, Download, FileText } from 'lucide-react';
 import { Document, SearchResult } from '../types';
 import { downloadSearchResultsAsExcel, downloadSearchResultsAsPDF } from '../utils/downloadUtils';
+import * as XLSX from 'xlsx';
+import { pdfjs } from 'react-pdf';
+
+// Configure PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
 interface SearchInterfaceProps {
   documents: Document[];
   onViewDocument: (doc: Document) => void;
 }
 
+// Function to get correct PDF URL from Cloudinary
+const getPdfUrl = (doc: Document): string => {
+  if (!doc.url) return '';
+  // Ensure URL uses correct format for PDF
+  if (doc.resource_type === 'raw') {
+    return doc.url;
+  }
+  // If resource_type is image, change to raw
+  return doc.url.replace('/image/upload/', '/raw/upload/');
+};
+
+// Function to extract text from PDF
+const extractTextFromPDF = async (pdfUrl: string): Promise<string[]> => {
+  try {
+    const pdf = await pdfjs.getDocument(pdfUrl).promise;
+    const textPromises = [];
+    
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const text = textContent.items.map((item: any) => item.str).join(' ');
+      textPromises.push(text);
+    }
+    
+    return await Promise.all(textPromises);
+  } catch (error) {
+    console.error('Error extracting text from PDF:', error);
+    return [];
+  }
+};
+
 export const SearchInterface: React.FC<SearchInterfaceProps> = ({ documents, onViewDocument }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchProgress, setSearchProgress] = useState({ current: 0, total: 0 });
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     setIsSearching(true);
+    setSearchResults([]);
+    
     try {
-      const res = await fetch(`/search.php?query=${encodeURIComponent(searchQuery)}`);
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
+      const results: SearchResult[] = [];
+      const queryLower = searchQuery.toLowerCase();
+      const searchableDocs = documents.filter(doc => doc.type === 'excel' || doc.type === 'pdf');
+      
+      setSearchProgress({ current: 0, total: searchableDocs.length });
+      
+      // Search through all documents
+      for (let i = 0; i < searchableDocs.length; i++) {
+        const doc = searchableDocs[i];
+        setSearchProgress({ current: i + 1, total: searchableDocs.length });
+        
+        if (doc.type === 'excel') {
+          // Download and search Excel files
+          try {
+            const response = await fetch(doc.url!);
+            if (!response.ok) continue;
+            
+            const arrayBuffer = await response.arrayBuffer();
+            const data = new Uint8Array(arrayBuffer);
+            const workbook = XLSX.read(data, { type: 'array' });
+            
+            // Search through all sheets
+            workbook.SheetNames.forEach((sheetName, sheetIndex) => {
+              const worksheet = workbook.Sheets[sheetName];
+              const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+              
+              // Search through all rows and columns
+              jsonData.forEach((row: any, rowIndex: number) => {
+                Object.entries(row).forEach(([column, value]) => {
+                  const valueStr = String(value).toLowerCase();
+                  if (valueStr.includes(queryLower)) {
+                    results.push({
+                      file: doc.name,
+                      type: 'excel',
+                      sheet: sheetName,
+                      row: rowIndex + 1,
+                      column: column,
+                      value: String(value)
+                    });
+                  }
+                });
+              });
+            });
+          } catch (error) {
+            console.error(`Error searching Excel file ${doc.name}:`, error);
+          }
+        } else if (doc.type === 'pdf') {
+          // Extract text from PDF and search
+          try {
+            const pdfUrl = getPdfUrl(doc);
+            const pdfTexts = await extractTextFromPDF(pdfUrl);
+            
+            pdfTexts.forEach((text, pageIndex) => {
+              if (text.toLowerCase().includes(queryLower)) {
+                const pos = text.toLowerCase().indexOf(queryLower);
+                const snippet = text.substring(Math.max(0, pos - 50), pos + queryLower.length + 50);
+                
+                results.push({
+                  file: doc.name,
+                  type: 'pdf',
+                  page: pageIndex + 1,
+                  snippet: snippet
+                });
+              }
+            });
+          } catch (error) {
+            console.error(`Error searching PDF file ${doc.name}:`, error);
+            // Fallback: add a placeholder result
+            results.push({
+              file: doc.name,
+              type: 'pdf',
+              page: 1,
+              snippet: `PDF file detected - ${doc.name} may contain "${searchQuery}" (text extraction failed)`
+            });
+          }
+        }
       }
-      const data = await res.json();
-      console.log('Search results:', data); // Debug log
-      setSearchResults(data);
-    } catch (e) {
-      console.error('Search error:', e);
+      
+      console.log('Search results:', results);
+      setSearchResults(results);
+    } catch (error) {
+      console.error('Search error:', error);
       setSearchResults([]);
     }
+    
     setIsSearching(false);
+    setSearchProgress({ current: 0, total: 0 });
   };
 
   const highlightMatch = (text: string, query: string) => {
@@ -102,6 +216,22 @@ export const SearchInterface: React.FC<SearchInterfaceProps> = ({ documents, onV
             {isSearching ? 'Searching...' : 'Search'}
           </button>
         </div>
+        
+        {/* Search Progress */}
+        {isSearching && searchProgress.total > 0 && (
+          <div className="mt-4">
+            <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
+              <span>Searching files...</span>
+              <span>{searchProgress.current} / {searchProgress.total}</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${(searchProgress.current / searchProgress.total) * 100}%` }}
+              ></div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Search Results */}
