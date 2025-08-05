@@ -5,8 +5,23 @@ import { downloadSearchResultsAsExcel, downloadSearchResultsAsPDF } from '../uti
 import * as XLSX from 'xlsx';
 import { pdfjs } from 'react-pdf';
 
-// Configure PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+// Configure PDF.js worker - use multiple fallback options
+const configurePdfWorker = () => {
+  try {
+    // Try CDN first
+    pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+  } catch (error) {
+    try {
+      // Fallback to unpkg
+      pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+    } catch (fallbackError) {
+      // Final fallback - use local worker if available
+      pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+    }
+  }
+};
+
+configurePdfWorker();
 
 interface SearchInterfaceProps {
   documents: Document[];

@@ -5,6 +5,18 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
-    exclude: ['lucide-react'],
+    include: ['react-pdf'],
+    exclude: ['pdfjs-dist']
   },
+  build: {
+    rollupOptions: {
+      external: ['pdfjs-dist/build/pdf.worker.min.js']
+    }
+  },
+  server: {
+    headers: {
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+      'Cross-Origin-Opener-Policy': 'same-origin'
+    }
+  }
 });

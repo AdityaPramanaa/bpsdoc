@@ -7,11 +7,7 @@ import {
   downloadSheetAsExcel,
   downloadSheetAsPDF 
 } from '../utils/downloadUtils';
-import { Document as PDFViewerDocument, Page, pdfjs } from 'react-pdf';
 import { PDFDocument } from 'pdf-lib';
-
-// Configure PDF.js worker - use a more reliable CDN
-pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
 interface DocumentViewerProps {
   currentDocument: Document;
@@ -80,23 +76,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ currentDocument,
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [numPages, setNumPages] = useState<number>(0);
-  const [pdfTextPerPage, setPdfTextPerPage] = useState<string[]>([]);
   const [excelSearchResults, setExcelSearchResults] = useState<any[]>([]);
-  const [pdfError, setPdfError] = useState<string | null>(null);
-  const [pdfWidth, setPdfWidth] = useState(800);
-
-  // Handle window resize for responsive PDF viewer
-  useEffect(() => {
-    const updatePdfWidth = () => {
-      const newWidth = Math.min(800, window.innerWidth - 100);
-      setPdfWidth(newWidth);
-    };
-
-    updatePdfWidth();
-    window.addEventListener('resize', updatePdfWidth);
-    return () => window.removeEventListener('resize', updatePdfWidth);
-  }, []);
 
   // Untuk Excel tetap
   const currentSheetData = useMemo(() => {
@@ -110,64 +90,6 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ currentDocument,
     const endIndex = startIndex + ROWS_PER_PAGE;
     return currentSheetData.slice(startIndex, endIndex);
   }, [currentSheetData, currentPage]);
-
-  // PDF: Ambil teks per halaman saat PDF dimuat
-  const onDocumentLoadSuccess = useCallback(async (pdf: any) => {
-    setNumPages(pdf.numPages);
-    setPdfError(null);
-    const textPromises = [];
-    for (let i = 1; i <= pdf.numPages; i++) {
-      textPromises.push(pdf.getPage(i).then((page: any) => page.getTextContent().then((tc: any) => tc.items.map((it: any) => it.str).join(' '))));
-    }
-    const allText = await Promise.all(textPromises);
-    setPdfTextPerPage(allText);
-  }, []);
-
-  // PDF: Handle error loading
-  const onDocumentLoadError = useCallback((error: any) => {
-    console.error('PDF load error:', error);
-    setPdfError('Gagal memuat PDF. Pastikan file PDF valid dan dapat diakses.');
-  }, []);
-
-  // PDF: Search seluruh halaman
-  const handlePDFSearch = useCallback(() => {
-    if (!searchQuery.trim() || pdfTextPerPage.length === 0) return;
-    setIsSearching(true);
-    setTimeout(() => {
-      const query = searchQuery.toLowerCase();
-      const foundPages: number[] = [];
-      pdfTextPerPage.forEach((text, idx) => {
-        if (text.toLowerCase().includes(query)) {
-          foundPages.push(idx + 1); // halaman dimulai dari 1
-        }
-      });
-      setSearchResults(foundPages);
-      setShowSearchResults(true);
-      setIsSearching(false);
-    }, 100);
-  }, [searchQuery, pdfTextPerPage]);
-
-  // PDF: Download hasil pencarian sebagai PDF baru (hanya halaman hasil)
-  const handleDownloadPDFSearchResults = useCallback(async () => {
-    if (!currentDocument.url || searchResults.length === 0) return;
-    try {
-      const existingPdfBytes = await fetch(currentDocument.url).then(res => res.arrayBuffer());
-      const pdfDoc = await PDFDocument.load(existingPdfBytes);
-      const newPdf = await PDFDocument.create();
-      for (const pageNum of searchResults) {
-        const [copiedPage] = await newPdf.copyPages(pdfDoc, [pageNum - 1]);
-        newPdf.addPage(copiedPage);
-      }
-      const newPdfBytes = await newPdf.save();
-      const blob = new Blob([newPdfBytes], { type: 'application/pdf' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `${currentDocument.name}-search-results.pdf`;
-      link.click();
-    } catch (error) {
-      console.error('Error downloading PDF search results:', error);
-    }
-  }, [currentDocument, searchResults]);
 
   const totalPages = Math.ceil(currentSheetData.length / ROWS_PER_PAGE);
 
@@ -259,121 +181,48 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ currentDocument,
   // PDF Viewer UI
   const renderPDFViewer = () => (
     <div className="space-y-6">
-      {/* Search Bar */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Cari di PDF</h3>
-        <div className="flex space-x-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              onKeyPress={e => e.key === 'Enter' && handlePDFSearch()}
-              placeholder="Cari kata/frasa di PDF..."
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/90"
-            />
-          </div>
-          <button
-            onClick={handlePDFSearch}
-            disabled={!searchQuery.trim() || isSearching}
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center shadow-lg shadow-blue-500/25"
-          >
-            <Search className="h-4 w-4 mr-2" />
-            {isSearching ? 'Mencari...' : 'Cari'}
-          </button>
-        </div>
-      </div>
-      {/* Search Results */}
-      {showSearchResults && (
-        <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20">
-          <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Hasil pencarian "{searchQuery}" ({searchResults.length} halaman ditemukan)
-              </h3>
-              <button
-                onClick={() => setShowSearchResults(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            {searchResults.length > 0 && (
-              <button
-                onClick={handleDownloadPDFSearchResults}
-                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center text-sm shadow-lg shadow-red-500/25"
-              >
-                <Download className="h-4 w-4 mr-1" />
-                Download PDF Hasil
-              </button>
-            )}
-          </div>
-          {searchResults.length > 0 ? (
-            <div className="p-6 flex flex-wrap gap-2">
-              {searchResults.map(pageNum => (
-                <button
-                  key={pageNum}
-                  onClick={() => setCurrentPage(pageNum)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium border ${currentPage === pageNum ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border-blue-600'} hover:bg-blue-100`}
-                >
-                  Halaman {pageNum}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="p-8 text-center text-gray-600">Tidak ditemukan hasil di PDF.</div>
-          )}
-        </div>
-      )}
       {/* PDF Viewer */}
       <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 p-8 flex flex-col items-center">
-        {pdfError ? (
-          <div className="text-center">
-            <div className="text-red-600 mb-4">{pdfError}</div>
+        <div className="w-full max-w-4xl">
+          {/* PDF Viewer Options */}
+          <div className="mb-6 flex flex-wrap gap-3 justify-center">
             <button
               onClick={() => window.open(getPdfUrl(currentDocument), '_blank')}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
             >
-              Buka PDF di Tab Baru
+              <FileText className="h-4 w-4 mr-2" />
+              Buka di Tab Baru
             </button>
-          </div>
-        ) : (
-          <div className="w-full max-w-4xl">
-            <PDFViewerDocument
-              file={getPdfUrl(currentDocument)}
-              onLoadSuccess={onDocumentLoadSuccess}
-              onLoadError={onDocumentLoadError}
-              loading={<div className="text-center py-8">Memuat PDF...</div>}
-            >
-              <Page 
-                pageNumber={currentPage} 
-                width={pdfWidth}
-                loading={<div className="text-center py-8">Memuat halaman...</div>}
-                error={<div className="text-red-600 text-center py-8">Gagal memuat halaman.</div>}
-              />
-            </PDFViewerDocument>
-          </div>
-        )}
-        {numPages > 0 && (
-          <div className="flex items-center space-x-4 mt-4">
             <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 disabled:opacity-50"
+              onClick={() => {
+                const link = document.createElement('a');
+                link.href = getPdfUrl(currentDocument);
+                link.download = currentDocument.name;
+                link.click();
+              }}
+              className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center"
             >
-              <ChevronLeft className="h-4 w-4" /> Prev
-            </button>
-            <span>Halaman {currentPage} dari {numPages}</span>
-            <button
-              onClick={() => setCurrentPage(p => Math.min(numPages, p + 1))}
-              disabled={currentPage === numPages}
-              className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 disabled:opacity-50"
-            >
-              Next <ChevronRight className="h-4 w-4" />
+              <Download className="h-4 w-4 mr-2" />
+              Download PDF
             </button>
           </div>
-        )}
+          
+          {/* PDF iframe viewer */}
+          <div className="w-full">
+            <iframe
+              src={`${getPdfUrl(currentDocument)}#toolbar=1&navpanes=1&scrollbar=1`}
+              width="100%"
+              height="600"
+              className="border border-gray-300 rounded-lg shadow-lg"
+              title="PDF Viewer"
+            />
+          </div>
+          
+          {/* Fallback message if iframe fails */}
+          <div className="mt-4 text-center text-sm text-gray-600">
+            <p>Jika PDF tidak tampil, gunakan tombol "Buka di Tab Baru" di atas.</p>
+          </div>
+        </div>
       </div>
     </div>
   );
