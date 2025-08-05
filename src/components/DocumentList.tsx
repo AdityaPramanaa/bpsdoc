@@ -1,22 +1,68 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Document } from '../types';
-import { FileText, Eye, Download, Calendar, HardDrive } from 'lucide-react';
+import { FileText, Table, Download, Eye, Calendar, Filter, SortAsc, SortDesc } from 'lucide-react';
 
 interface DocumentListProps {
   documents: Document[];
   onViewDocument: (doc: Document) => void;
 }
 
-export const DocumentList: React.FC<DocumentListProps> = ({
-  documents,
-  onViewDocument,
-}) => {
-  const [filter, setFilter] = useState('all');
+export const DocumentList: React.FC<DocumentListProps> = ({ documents, onViewDocument }) => {
+  const [sortBy, setSortBy] = useState<'name' | 'date' | 'size' | 'type'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [filterType, setFilterType] = useState<'all' | 'pdf' | 'excel'>('all');
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredDocuments = documents.filter(doc => {
-    if (filter === 'all') return true;
-    return doc.type === filter;
-  });
+  // Filter and sort documents
+  const filteredAndSortedDocuments = useMemo(() => {
+    let filtered = documents;
+
+    // Filter by type
+    if (filterType !== 'all') {
+      filtered = filtered.filter(doc => doc.type === filterType);
+    }
+
+    // Filter by search term
+    if (searchTerm) {
+      filtered = filtered.filter(doc => 
+        doc.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Sort documents
+    filtered.sort((a, b) => {
+      let aValue: any, bValue: any;
+
+      switch (sortBy) {
+        case 'name':
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+          break;
+        case 'date':
+          aValue = new Date(a.uploadDate).getTime();
+          bValue = new Date(b.uploadDate).getTime();
+          break;
+        case 'size':
+          aValue = a.size;
+          bValue = b.size;
+          break;
+        case 'type':
+          aValue = a.type;
+          bValue = b.type;
+          break;
+        default:
+          return 0;
+      }
+
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+
+    return filtered;
+  }, [documents, sortBy, sortOrder, filterType, searchTerm]);
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -26,132 +72,175 @@ export const DocumentList: React.FC<DocumentListProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+  const getDocumentIcon = (type: string) => {
+    return type === 'pdf' ? (
+      <FileText className="h-8 w-8 text-red-500" />
+    ) : (
+      <Table className="h-8 w-8 text-green-500" />
+    );
   };
 
-  // Fungsi untuk memastikan URL Cloudinary benar (raw vs image)
-  const getCloudinaryUrl = (doc: Document) => {
-    if (!doc.url) return '';
-    if (doc.resource_type === 'raw') {
-      return doc.url.replace('/image/upload/', '/raw/upload/');
-    }
-    return doc.url;
+  const getTypeBadge = (type: string) => {
+    const colors = type === 'pdf' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800';
+    return (
+      <span className={`px-2 py-1 text-xs font-medium rounded-full ${colors}`}>
+        {type.toUpperCase()}
+      </span>
+    );
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 p-4 sm:p-6">
-        <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">
-          Document
-        </h1>
-        <p className="text-sm sm:text-base text-gray-600">
-          Browse your uploaded documents. Click "View & Search" to open and search within documents.
-      
-        </p>
-      </div>
+      {/* Header with controls */}
+      <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+            Documents ({filteredAndSortedDocuments.length})
+          </h1>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => {
+                const csvContent = filteredAndSortedDocuments.map(doc => 
+                  `${doc.name},${doc.type},${formatFileSize(doc.size)},${new Date(doc.uploadDate).toLocaleDateString()}`
+                ).join('\n');
+                const blob = new Blob([`Name,Type,Size,Date\n${csvContent}`], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'documents_list.csv';
+                link.click();
+              }}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center text-sm"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </button>
+          </div>
+        </div>
 
-      {/* Filter Tabs */}
-      <div className="flex flex-wrap gap-1 bg-white/60 backdrop-blur-sm p-1 rounded-xl shadow-sm border border-white/20 w-fit">
-        {['all', 'pdf', 'excel'].map((type) => (
-          <button
-            key={type}
-            onClick={() => setFilter(type)}
-            className={`px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 capitalize ${
-              filter === type
-                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-white/80'
-            }`}
+        {/* Search and Filter Controls */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Search */}
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search documents..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          </div>
+
+          {/* Type Filter */}
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value as 'all' | 'pdf' | 'excel')}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
-            {type === 'all' ? 'All Files' : type.toUpperCase()}
+            <option value="all">All Types</option>
+            <option value="pdf">PDF Only</option>
+            <option value="excel">Excel Only</option>
+          </select>
+
+          {/* Sort By */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as 'name' | 'date' | 'size' | 'type')}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="date">Sort by Date</option>
+            <option value="name">Sort by Name</option>
+            <option value="size">Sort by Size</option>
+            <option value="type">Sort by Type</option>
+          </select>
+
+          {/* Sort Order */}
+          <button
+            onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center"
+          >
+            {sortOrder === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
           </button>
-        ))}
+        </div>
       </div>
 
       {/* Documents Grid */}
-      <div className="grid grid-cols-1 xs:grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-        {filteredDocuments.map((doc) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredAndSortedDocuments.map((doc) => (
           <div
             key={doc.id}
-            className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 hover:shadow-xl hover:scale-105 transition-all duration-200"
+            className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 p-6 hover:shadow-xl transition-all duration-300 cursor-pointer group"
+            onClick={() => onViewDocument(doc)}
           >
-            <div className="p-3 sm:p-4 md:p-6">
-              <div className="flex flex-col sm:flex-row items-start justify-between mb-3 sm:mb-4 gap-2">
-                <div className="flex items-center min-w-0 flex-1">
-                  <div className={`p-2 sm:p-3 rounded-xl flex-shrink-0 ${
-                    doc.type === 'pdf' 
-                      ? 'bg-gradient-to-r from-red-100 to-red-200' 
-                      : 'bg-gradient-to-r from-green-100 to-green-200'
-                  }`}>
-                    <FileText className={`h-4 w-4 sm:h-6 sm:w-6 ${
-                      doc.type === 'pdf' ? 'text-red-600' : 'text-green-600'
-                    }`} />
-                  </div>
-                  <div className="ml-2 sm:ml-3 min-w-0 flex-1">
-                    <h3 className="text-xs sm:text-sm font-medium text-gray-900 truncate" title={doc.name}>
-                      {doc.name}
-                    </h3>
-                    <p className={`text-xs font-medium ${
-                      doc.type === 'pdf' ? 'text-red-600' : 'text-green-600'
-                    }`}>
-                      {doc.type.toUpperCase()}
-                      {doc.type === 'excel' && doc.sheets && (
-                        <span className="ml-1 text-gray-500">
-                          • {doc.sheets.length} sheet{doc.sheets.length > 1 ? 's' : ''}
-                        </span>
-                      )}
-                    </p>
-                  </div>
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                {getDocumentIcon(doc.type)}
+                <div>
+                  <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                    {doc.name}
+                  </h3>
+                  {getTypeBadge(doc.type)}
                 </div>
               </div>
-              <div className="space-y-2 mb-3 sm:mb-4">
-                <div className="flex items-center text-xs text-gray-500">
-                  <HardDrive className="h-3 w-3 mr-1 flex-shrink-0" />
-                  <span className="truncate">{formatFileSize(doc.size)}</span>
-                </div>
-                <div className="flex items-center text-xs text-gray-500">
-                  <Calendar className="h-3 w-3 mr-1 flex-shrink-0" />
-                  <span className="truncate">{formatDate(doc.uploadDate)}</span>
-                </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const link = document.createElement('a');
+                  link.href = doc.url || '';
+                  link.download = doc.name;
+                  link.click();
+                }}
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <Download className="h-4 w-4 text-gray-600" />
+              </button>
+            </div>
+
+            <div className="space-y-2 text-sm text-gray-600">
+              <div className="flex items-center space-x-2">
+                <Calendar className="h-4 w-4" />
+                <span>{new Date(doc.uploadDate).toLocaleDateString('id-ID')}</span>
               </div>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <button
-                  onClick={() => onViewDocument(doc)}
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-3 py-2 rounded-lg text-xs sm:text-sm font-medium hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 flex items-center justify-center shadow-lg shadow-blue-500/25"
-                >
-                  <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                  <span className="hidden sm:inline">View & Search</span>
-                  <span className="sm:hidden">View</span>
-                </button>
-                <button
-                  className="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-200 transition-colors flex items-center justify-center sm:w-auto"
-                  onClick={() => {
-                    const link = document.createElement('a');
-                    link.href = getCloudinaryUrl(doc);
-                    link.download = doc.name;
-                    link.target = '_blank';
-                    link.click();
-                  }}
-                >
-                  <Download className="h-3 w-3 sm:h-4 sm:w-4" />
-                </button>
+              <div className="flex items-center space-x-2">
+                <FileText className="h-4 w-4" />
+                <span>{formatFileSize(doc.size)}</span>
               </div>
+              {doc.type === 'excel' && doc.sheets && (
+                <div className="flex items-center space-x-2">
+                  <Table className="h-4 w-4" />
+                  <span>{doc.sheets.length} sheet{doc.sheets.length !== 1 ? 's' : ''}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 flex items-center justify-between">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewDocument(doc);
+                }}
+                className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 transition-colors"
+              >
+                <Eye className="h-4 w-4" />
+                <span className="text-sm font-medium">View</span>
+              </button>
             </div>
           </div>
         ))}
       </div>
 
-      {filteredDocuments.length === 0 && (
-        <div className="text-center py-8 sm:py-12">
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 p-6 sm:p-8">
-            <FileText className="h-8 w-8 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-sm sm:text-base text-gray-500">No documents found</p>
-          </div>
+      {/* Empty State */}
+      {filteredAndSortedDocuments.length === 0 && (
+        <div className="text-center py-12">
+          <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No documents found</h3>
+          <p className="text-gray-600">
+            {searchTerm || filterType !== 'all' 
+              ? 'Try adjusting your search or filter criteria.'
+              : 'Upload your first document to get started.'
+            }
+          </p>
         </div>
       )}
     </div>

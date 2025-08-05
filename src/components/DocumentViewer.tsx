@@ -186,9 +186,11 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ currentDocument,
       url = url.replace('http://', 'https://');
     }
     
+    // Hapus parameter yang mungkin menyebabkan masalah
+    url = url.split('?')[0];
+    
     // Tambahkan parameter untuk memastikan PDF ditampilkan dengan benar
-    const separator = url.includes('?') ? '&' : '?';
-    url += `${separator}fl_attachment`;
+    url += '?fl_attachment';
     
     console.log('PDF URL:', url);
     return url;
@@ -197,6 +199,53 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ currentDocument,
   // PDF Viewer UI
   const renderPDFViewer = () => (
     <div className="space-y-6">
+      {/* Document Info Card */}
+      <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+              <FileText className="h-6 w-6 text-red-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">{currentDocument.name}</h3>
+              <p className="text-sm text-gray-600">
+                PDF • {new Date(currentDocument.uploadDate).toLocaleDateString('id-ID')} • 
+                {(currentDocument.size / 1024 / 1024).toFixed(2)} MB
+              </p>
+            </div>
+          </div>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(getPdfUrl(currentDocument));
+                alert('URL PDF telah disalin ke clipboard!');
+              }}
+              className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-sm"
+            >
+              Salin URL
+            </button>
+            <button
+              onClick={() => {
+                const shareData = {
+                  title: currentDocument.name,
+                  text: `Lihat dokumen: ${currentDocument.name}`,
+                  url: getPdfUrl(currentDocument)
+                };
+                if (navigator.share) {
+                  navigator.share(shareData);
+                } else {
+                  navigator.clipboard.writeText(getPdfUrl(currentDocument));
+                  alert('URL telah disalin ke clipboard!');
+                }
+              }}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+            >
+              Bagikan
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* PDF Viewer */}
       <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 p-8 flex flex-col items-center">
         <div className="w-full max-w-4xl">
@@ -320,6 +369,62 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ currentDocument,
     
     return (
       <div className="space-y-6">
+        {/* Document Info Card */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <Table className="h-6 w-6 text-green-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">{currentDocument.name}</h3>
+                <p className="text-sm text-gray-600">
+                  Excel • {new Date(currentDocument.uploadDate).toLocaleDateString('id-ID')} • 
+                  {currentDocument.sheets?.length || 0} sheet{currentDocument.sheets?.length !== 1 ? 's' : ''} • 
+                  {currentDocument.sheets?.reduce((total, sheet) => total + sheet.data.length, 0) || 0} total rows
+                </p>
+              </div>
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => {
+                  const data = {
+                    filename: currentDocument.name,
+                    sheets: currentDocument.sheets?.map(sheet => ({
+                      name: sheet.name,
+                      data: sheet.data
+                    }))
+                  };
+                  navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+                  alert('Data Excel telah disalin ke clipboard!');
+                }}
+                className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-sm"
+              >
+                Salin Data
+              </button>
+              <button
+                onClick={() => {
+                  const url = getPdfUrl(currentDocument);
+                  const shareData = {
+                    title: currentDocument.name,
+                    text: `Lihat dokumen Excel: ${currentDocument.name}`,
+                    url: url
+                  };
+                  if (navigator.share) {
+                    navigator.share(shareData);
+                  } else {
+                    navigator.clipboard.writeText(url);
+                    alert('URL telah disalin ke clipboard!');
+                  }
+                }}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+              >
+                Bagikan
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Search Interface */}
         <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Search in Document</h3>
