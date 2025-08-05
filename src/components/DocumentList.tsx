@@ -174,7 +174,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ documents, onViewDoc
         {filteredAndSortedDocuments.map((doc) => (
           <div
             key={doc.id}
-            className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 p-4 hover:shadow-xl transition-all duration-300 cursor-pointer group"
+            className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 p-4 hover:shadow-xl transition-all duration-300 cursor-pointer group h-full"
             onClick={() => onViewDocument(doc)}
           >
             <div className="flex items-start justify-between mb-3">
@@ -183,7 +183,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ documents, onViewDoc
                   {getDocumentIcon(doc.type)}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors truncate" title={doc.name}>
+                  <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors text-sm leading-tight line-clamp-2" title={doc.name}>
                     {doc.name}
                   </h3>
                   <div className="mt-1">

@@ -202,25 +202,27 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ currentDocument,
       {/* Document Info Card */}
       <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 p-6">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+          <div className="flex items-center space-x-4 flex-1 min-w-0">
+            <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
               <FileText className="h-6 w-6 text-red-600" />
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">{currentDocument.name}</h3>
-              <p className="text-sm text-gray-600">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-lg font-semibold text-gray-900 truncate" title={currentDocument.name}>
+                {currentDocument.name}
+              </h3>
+              <p className="text-sm text-gray-600 truncate">
                 PDF • {new Date(currentDocument.uploadDate).toLocaleDateString('id-ID')} • 
                 {(currentDocument.size / 1024 / 1024).toFixed(2)} MB
               </p>
             </div>
           </div>
-          <div className="flex space-x-2">
+          <div className="flex space-x-2 flex-shrink-0">
             <button
               onClick={() => {
                 navigator.clipboard.writeText(getPdfUrl(currentDocument));
                 alert('URL PDF telah disalin ke clipboard!');
               }}
-              className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-sm"
+              className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-sm whitespace-nowrap"
             >
               Salin URL
             </button>
@@ -238,7 +240,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ currentDocument,
                   alert('URL telah disalin ke clipboard!');
                 }
               }}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm whitespace-nowrap"
             >
               Bagikan
             </button>
@@ -372,20 +374,22 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ currentDocument,
         {/* Document Info Card */}
         <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 p-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+            <div className="flex items-center space-x-4 flex-1 min-w-0">
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
                 <Table className="h-6 w-6 text-green-600" />
               </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">{currentDocument.name}</h3>
-                <p className="text-sm text-gray-600">
+              <div className="min-w-0 flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 truncate" title={currentDocument.name}>
+                  {currentDocument.name}
+                </h3>
+                <p className="text-sm text-gray-600 truncate">
                   Excel • {new Date(currentDocument.uploadDate).toLocaleDateString('id-ID')} • 
                   {currentDocument.sheets?.length || 0} sheet{currentDocument.sheets?.length !== 1 ? 's' : ''} • 
                   {currentDocument.sheets?.reduce((total, sheet) => total + sheet.data.length, 0) || 0} total rows
                 </p>
               </div>
             </div>
-            <div className="flex space-x-2">
+            <div className="flex space-x-2 flex-shrink-0">
               <button
                 onClick={() => {
                   const data = {
@@ -398,7 +402,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ currentDocument,
                   navigator.clipboard.writeText(JSON.stringify(data, null, 2));
                   alert('Data Excel telah disalin ke clipboard!');
                 }}
-                className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-sm"
+                className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-sm whitespace-nowrap"
               >
                 Salin Data
               </button>
@@ -417,7 +421,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ currentDocument,
                     alert('URL telah disalin ke clipboard!');
                   }
                 }}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm whitespace-nowrap"
               >
                 Bagikan
               </button>
