@@ -1,3 +1,57 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* PDF Viewer Styles */
+.react-pdf__Document {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.react-pdf__Page {
+  margin: 1rem 0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-radius: 0.5rem;
+}
+
+.react-pdf__Page__canvas {
+  border-radius: 0.5rem;
+}
+
+.react-pdf__Page__textContent {
+  border-radius: 0.5rem;
+}
+
+.react-pdf__Page__annotations {
+  border-radius: 0.5rem;
+}
+
+/* Loading and error states */
+.react-pdf__Page__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+.react-pdf__Page__error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: #ef4444;
+}
+
+/* Responsive PDF viewer */
+@media (max-width: 768px) {
+  .react-pdf__Page {
+    max-width: 100%;
+    height: auto;
+  }
+  
+  .react-pdf__Page__canvas {
+    max-width: 100%;
+    height: auto;
+  }
+}

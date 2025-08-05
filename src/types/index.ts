@@ -1,13 +1,14 @@
 export interface Document {
   id: string;
   name: string;
-  type: 'pdf' | 'excel';
+  type: 'pdf' | 'excel' | 'other';
   size: number;
   uploadDate: string;
   sheets?: ExcelSheet[];
   content?: string;
   url?: string;
   public_id?: string;
+  resource_type?: string;
 }
 
 export interface ExcelSheet {
@@ -16,13 +17,14 @@ export interface ExcelSheet {
 }
 
 export interface SearchResult {
-  documentId: string;
-  documentName: string;
-  sheet: string;
-  row: number;
-  column: string;
-  value: string;
-  matchText: string;
+  file: string;
+  type: 'excel' | 'pdf' | 'other';
+  sheet?: string;
+  row?: number;
+  column?: string;
+  value?: string;
+  page?: number;
+  snippet?: string;
 }
 
 export interface User {

@@ -8,13 +8,10 @@ import {
   downloadSheetAsPDF 
 } from '../utils/downloadUtils';
 import { Document as PDFViewerDocument, Page, pdfjs } from 'react-pdf';
-import * as pdfjsLib from 'pdfjs-dist';
-// @ts-ignore
-import pdfWorker from 'pdfjs-dist/build/pdf.worker.min?worker&url';
 import { PDFDocument } from 'pdf-lib';
 
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+// Configure PDF.js worker - use a more reliable CDN
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
 interface DocumentViewerProps {
   currentDocument: Document;
@@ -86,6 +83,20 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ currentDocument,
   const [numPages, setNumPages] = useState<number>(0);
   const [pdfTextPerPage, setPdfTextPerPage] = useState<string[]>([]);
   const [excelSearchResults, setExcelSearchResults] = useState<any[]>([]);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [pdfWidth, setPdfWidth] = useState(800);
+
+  // Handle window resize for responsive PDF viewer
+  useEffect(() => {
+    const updatePdfWidth = () => {
+      const newWidth = Math.min(800, window.innerWidth - 100);
+      setPdfWidth(newWidth);
+    };
+
+    updatePdfWidth();
+    window.addEventListener('resize', updatePdfWidth);
+    return () => window.removeEventListener('resize', updatePdfWidth);
+  }, []);
 
   // Untuk Excel tetap
   const currentSheetData = useMemo(() => {
@@ -103,12 +114,19 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ currentDocument,
   // PDF: Ambil teks per halaman saat PDF dimuat
   const onDocumentLoadSuccess = useCallback(async (pdf: any) => {
     setNumPages(pdf.numPages);
+    setPdfError(null);
     const textPromises = [];
     for (let i = 1; i <= pdf.numPages; i++) {
       textPromises.push(pdf.getPage(i).then((page: any) => page.getTextContent().then((tc: any) => tc.items.map((it: any) => it.str).join(' '))));
     }
     const allText = await Promise.all(textPromises);
     setPdfTextPerPage(allText);
+  }, []);
+
+  // PDF: Handle error loading
+  const onDocumentLoadError = useCallback((error: any) => {
+    console.error('PDF load error:', error);
+    setPdfError('Gagal memuat PDF. Pastikan file PDF valid dan dapat diakses.');
   }, []);
 
   // PDF: Search seluruh halaman
@@ -132,19 +150,23 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ currentDocument,
   // PDF: Download hasil pencarian sebagai PDF baru (hanya halaman hasil)
   const handleDownloadPDFSearchResults = useCallback(async () => {
     if (!currentDocument.url || searchResults.length === 0) return;
-    const existingPdfBytes = await fetch(currentDocument.url).then(res => res.arrayBuffer());
-    const pdfDoc = await PDFDocument.load(existingPdfBytes);
-    const newPdf = await PDFDocument.create();
-    for (const pageNum of searchResults) {
-      const [copiedPage] = await newPdf.copyPages(pdfDoc, [pageNum - 1]);
-      newPdf.addPage(copiedPage);
+    try {
+      const existingPdfBytes = await fetch(currentDocument.url).then(res => res.arrayBuffer());
+      const pdfDoc = await PDFDocument.load(existingPdfBytes);
+      const newPdf = await PDFDocument.create();
+      for (const pageNum of searchResults) {
+        const [copiedPage] = await newPdf.copyPages(pdfDoc, [pageNum - 1]);
+        newPdf.addPage(copiedPage);
+      }
+      const newPdfBytes = await newPdf.save();
+      const blob = new Blob([newPdfBytes], { type: 'application/pdf' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${currentDocument.name}-search-results.pdf`;
+      link.click();
+    } catch (error) {
+      console.error('Error downloading PDF search results:', error);
     }
-    const newPdfBytes = await newPdf.save();
-    const blob = new Blob([newPdfBytes], { type: 'application/pdf' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `${currentDocument.name}-search-results.pdf`;
-    link.click();
   }, [currentDocument, searchResults]);
 
   const totalPages = Math.ceil(currentSheetData.length / ROWS_PER_PAGE);
@@ -223,13 +245,15 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ currentDocument,
     }
   }, [currentSheetData, currentDocument, activeSheet]);
 
-  // Fungsi untuk memastikan URL PDF Cloudinary benar (raw vs image)
+  // Fungsi untuk memastikan URL PDF Cloudinary benar
   const getPdfUrl = (doc: Document) => {
     if (!doc.url) return '';
+    // Pastikan URL menggunakan format yang benar untuk PDF
     if (doc.resource_type === 'raw') {
-      return doc.url.replace('/image/upload/', '/raw/upload/');
+      return doc.url;
     }
-    return doc.url;
+    // Jika resource_type adalah image, ubah ke raw
+    return doc.url.replace('/image/upload/', '/raw/upload/');
   };
 
   // PDF Viewer UI
@@ -304,31 +328,52 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ currentDocument,
       )}
       {/* PDF Viewer */}
       <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 p-8 flex flex-col items-center">
-        <PDFViewerDocument
-          file={getPdfUrl(currentDocument)}
-          onLoadSuccess={onDocumentLoadSuccess}
-          loading={<div>Memuat PDF...</div>}
-          error={<div className="text-red-600">Gagal memuat PDF.</div>}
-        >
-          <Page pageNumber={currentPage} width={800} loading={<div>Memuat halaman...</div>} />
-        </PDFViewerDocument>
-        <div className="flex items-center space-x-4 mt-4">
-          <button
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 disabled:opacity-50"
-          >
-            <ChevronLeft className="h-4 w-4" /> Prev
-          </button>
-          <span>Halaman {currentPage} dari {numPages}</span>
-          <button
-            onClick={() => setCurrentPage(p => Math.min(numPages, p + 1))}
-            disabled={currentPage === numPages}
-            className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 disabled:opacity-50"
-          >
-            Next <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
+        {pdfError ? (
+          <div className="text-center">
+            <div className="text-red-600 mb-4">{pdfError}</div>
+            <button
+              onClick={() => window.open(getPdfUrl(currentDocument), '_blank')}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            >
+              Buka PDF di Tab Baru
+            </button>
+          </div>
+        ) : (
+          <div className="w-full max-w-4xl">
+            <PDFViewerDocument
+              file={getPdfUrl(currentDocument)}
+              onLoadSuccess={onDocumentLoadSuccess}
+              onLoadError={onDocumentLoadError}
+              loading={<div className="text-center py-8">Memuat PDF...</div>}
+            >
+              <Page 
+                pageNumber={currentPage} 
+                width={pdfWidth}
+                loading={<div className="text-center py-8">Memuat halaman...</div>}
+                error={<div className="text-red-600 text-center py-8">Gagal memuat halaman.</div>}
+              />
+            </PDFViewerDocument>
+          </div>
+        )}
+        {numPages > 0 && (
+          <div className="flex items-center space-x-4 mt-4">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 disabled:opacity-50"
+            >
+              <ChevronLeft className="h-4 w-4" /> Prev
+            </button>
+            <span>Halaman {currentPage} dari {numPages}</span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(numPages, p + 1))}
+              disabled={currentPage === numPages}
+              className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 disabled:opacity-50"
+            >
+              Next <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -583,18 +628,19 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ currentDocument,
       </div>
 
       {/* Content */}
-      {(
-        currentDocument.type === 'pdf' ||
-        currentDocument.name.toLowerCase().endsWith('.pdf') ||
-        currentDocument.name.toLowerCase().endsWith('.pdf.tmp')
-      )
-        ? renderPDFViewer()
-        : currentDocument.type === 'excel' ||
-          currentDocument.name.toLowerCase().endsWith('.xlsx') ||
-          currentDocument.name.toLowerCase().endsWith('.xls')
-        ? renderExcelViewer()
-        : <div className="p-8 text-center text-red-600">Tipe file tidak dikenali.</div>
-      }
+      {currentDocument.type === 'pdf' ? (
+        renderPDFViewer()
+      ) : currentDocument.type === 'excel' ? (
+        renderExcelViewer()
+      ) : (
+        <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 p-8 text-center">
+          <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Tipe file tidak didukung</h3>
+          <p className="text-gray-600">
+            Hanya file PDF dan Excel yang dapat ditampilkan.
+          </p>
+        </div>
+      )}
     </div>
   );
 };

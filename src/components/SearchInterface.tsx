@@ -18,9 +18,14 @@ export const SearchInterface: React.FC<SearchInterfaceProps> = ({ documents, onV
     setIsSearching(true);
     try {
       const res = await fetch(`/search.php?query=${encodeURIComponent(searchQuery)}`);
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
       const data = await res.json();
+      console.log('Search results:', data); // Debug log
       setSearchResults(data);
     } catch (e) {
+      console.error('Search error:', e);
       setSearchResults([]);
     }
     setIsSearching(false);
@@ -46,12 +51,15 @@ export const SearchInterface: React.FC<SearchInterfaceProps> = ({ documents, onV
 
     // Convert SearchResult[] to the format expected by download functions
     const formattedResults = searchResults.map((result, index) => ({
-      _sheetName: result.sheet,
-      _rowIndex: result.row,
-      'Document': result.documentName,
-      'Column': result.column,
-      'Value': result.value,
-      'Match': result.matchText
+      _sheetName: result.sheet || 'Unknown',
+      _rowIndex: result.row || index + 1,
+      'Document': result.file,
+      'Type': result.type,
+      'Sheet': result.sheet || 'N/A',
+      'Row': result.row || 'N/A',
+      'Column': result.column || 'N/A',
+      'Value': result.value || result.snippet || 'N/A',
+      'Page': result.page || 'N/A'
     }));
 
     if (format === 'excel') {
@@ -136,12 +144,12 @@ export const SearchInterface: React.FC<SearchInterfaceProps> = ({ documents, onV
                       <div><span className="text-gray-500">Sheet:</span> <span className="font-medium">{result.sheet}</span></div>
                       <div><span className="text-gray-500">Row:</span> <span className="font-medium">{result.row}</span></div>
                       <div><span className="text-gray-500">Column:</span> <span className="font-medium">{result.column}</span></div>
-                      <div><span className="text-gray-500">Value:</span> <span className="ml-2">{highlightMatch(String(result.value), searchQuery)}</span></div>
+                      <div><span className="text-gray-500">Value:</span> <span className="ml-2">{highlightMatch(String(result.value || ''), searchQuery)}</span></div>
                     </div>
                   ) : result.type === 'pdf' ? (
                     <div className="grid grid-cols-3 gap-4 text-sm">
                       <div><span className="text-gray-500">Page:</span> <span className="font-medium">{result.page}</span></div>
-                      <div className="col-span-2"><span className="text-gray-500">Snippet:</span> <span className="ml-2">{highlightMatch(String(result.snippet), searchQuery)}</span></div>
+                      <div className="col-span-2"><span className="text-gray-500">Snippet:</span> <span className="ml-2">{highlightMatch(String(result.snippet || ''), searchQuery)}</span></div>
                     </div>
                   ) : null}
                 </div>

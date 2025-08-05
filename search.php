@@ -39,7 +39,8 @@ try {
         ];
     }, $allResources);
 } catch (Exception $e) {
-    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    error_log("Cloudinary API error: " . $e->getMessage());
+    echo json_encode(['error' => 'Gagal mengambil data dari Cloudinary']);
     exit;
 }
 
@@ -52,10 +53,17 @@ foreach ($files as $file) {
     $isPDF = $file['format'] === 'pdf' || $ext === 'pdf' || $publicIdExt === 'pdf' || preg_match('/pdf/i', $file['original_filename']);
     $type = $isExcel ? 'excel' : ($isPDF ? 'pdf' : 'other');
     $fileName = $file['original_filename'] . '.' . $file['format'];
+    
     if ($type === 'excel') {
         $tmp = tempnam(sys_get_temp_dir(), 'excel_');
-        file_put_contents($tmp, file_get_contents($url));
         try {
+            $fileContent = file_get_contents($url);
+            if ($fileContent === false) {
+                error_log("Failed to download file: " . $url);
+                continue;
+            }
+            file_put_contents($tmp, $fileContent);
+            
             $spreadsheet = IOFactory::load($tmp);
             foreach ($spreadsheet->getWorksheetIterator() as $sheet) {
                 $sheetName = $sheet->getTitle();
@@ -76,13 +84,23 @@ foreach ($files as $file) {
                 }
             }
         } catch (Exception $e) {
+            error_log("Excel processing error for file {$fileName}: " . $e->getMessage());
             // skip file error
+        } finally {
+            if (file_exists($tmp)) {
+                unlink($tmp);
+            }
         }
-        unlink($tmp);
     } else if ($type === 'pdf') {
         $tmp = tempnam(sys_get_temp_dir(), 'pdf_');
-        file_put_contents($tmp, file_get_contents($url));
         try {
+            $fileContent = file_get_contents($url);
+            if ($fileContent === false) {
+                error_log("Failed to download PDF file: " . $url);
+                continue;
+            }
+            file_put_contents($tmp, $fileContent);
+            
             $parser = new Parser();
             $pdf = $parser->parseFile($tmp);
             $pages = $pdf->getPages();
@@ -100,11 +118,16 @@ foreach ($files as $file) {
                 }
             }
         } catch (Exception $e) {
+            error_log("PDF processing error for file {$fileName}: " . $e->getMessage());
             // skip file error
+        } finally {
+            if (file_exists($tmp)) {
+                unlink($tmp);
+            }
         }
-        unlink($tmp);
     }
 }
+
 echo json_encode($results);
 
 $output = ob_get_clean();
