@@ -80,6 +80,21 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ currentDocument,
   const [pdfLoading, setPdfLoading] = useState(true);
   const [pdfError, setPdfError] = useState(false);
 
+  // Timeout handler untuk PDF loading
+  useEffect(() => {
+    if (currentDocument.type === 'pdf') {
+      setPdfLoading(true);
+      setPdfError(false);
+      
+      const timeout = setTimeout(() => {
+        setPdfLoading(false);
+        setPdfError(true);
+      }, 10000); // 10 detik timeout
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [currentDocument]);
+
   // Untuk Excel tetap
   const currentSheetData = useMemo(() => {
     if (!currentDocument.sheets || currentDocument.sheets.length === 0) return [];
@@ -173,30 +188,21 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ currentDocument,
   const getPdfUrl = (doc: Document) => {
     if (!doc.url) return '';
     
-    // Pastikan URL menggunakan format yang benar untuk PDF
-    let url = doc.url;
-    
-    // Jika resource_type adalah image, ubah ke raw
-    if (doc.resource_type === 'image') {
-      url = url.replace('/image/upload/', '/raw/upload/');
-    }
-    
     // Pastikan URL menggunakan HTTPS
-    if (url.startsWith('http://')) {
+    let url = doc.url;
+    if (!url.startsWith('https://')) {
       url = url.replace('http://', 'https://');
     }
     
-    // Hapus parameter yang mungkin menyebabkan masalah
+    // Hapus parameter yang bisa menyebabkan masalah
     url = url.split('?')[0];
     
-    // Tambahkan parameter untuk memastikan PDF ditampilkan dengan benar
+    // Tambahkan parameter untuk direct PDF display
     url += '?fl_attachment';
     
-    console.log('PDF URL:', url);
     return url;
   };
 
-  // PDF Viewer UI
   const renderPDFViewer = () => (
     <div className="space-y-6">
       {/* Document Info Card */}
@@ -250,105 +256,134 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ currentDocument,
 
       {/* PDF Viewer */}
       <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 p-8 flex flex-col items-center">
-        <div className="w-full max-w-4xl">
-          {/* PDF Viewer Options */}
-          <div className="mb-6 flex flex-wrap gap-3 justify-center">
+        {/* PDF Viewer Options */}
+        <div className="mb-6 flex flex-wrap gap-3 justify-center">
+          <button
+            onClick={() => window.open(getPdfUrl(currentDocument), '_blank')}
+            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Buka di Tab Baru
+          </button>
+          <button
+            onClick={() => {
+              const link = document.createElement('a');
+              link.href = getPdfUrl(currentDocument);
+              link.download = currentDocument.name;
+              link.click();
+            }}
+            className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Download PDF
+          </button>
+        </div>
+        
+        {/* PDF iframe viewer with improved loading */}
+        <div className="w-full">
+          <div className="relative">
+            {pdfLoading && (
+              <div className="absolute inset-0 bg-gray-100 rounded-lg flex items-center justify-center z-10">
+                <div className="text-center">
+                  <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                  <p className="text-gray-600">Memuat PDF...</p>
+                  <p className="text-xs text-gray-500 mt-1">Jika terlalu lama, gunakan tombol alternatif</p>
+                </div>
+              </div>
+            )}
+            
+            <iframe
+              src={`${getPdfUrl(currentDocument)}#toolbar=1&navpanes=1&scrollbar=1`}
+              width="100%"
+              height="600"
+              className="border border-gray-300 rounded-lg shadow-lg"
+              title="PDF Viewer"
+              onLoad={() => {
+                console.log('PDF iframe loaded successfully');
+                setPdfLoading(false);
+                setPdfError(false);
+              }}
+              onError={() => {
+                console.error('PDF iframe failed to load');
+                setPdfLoading(false);
+                setPdfError(true);
+              }}
+              sandbox="allow-same-origin allow-scripts allow-forms"
+            />
+            
+            {pdfError && (
+              <div className="absolute inset-0 bg-red-50 border-2 border-red-200 rounded-lg flex items-center justify-center z-10">
+                <div className="text-center">
+                  <div className="text-red-600 text-lg font-medium mb-2">PDF tidak dapat dimuat</div>
+                  <p className="text-red-500 text-sm">Coba gunakan tombol alternatif di bawah</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* Alternative viewer options */}
+        <div className="mt-6 text-center">
+          <h4 className="text-lg font-medium text-gray-900 mb-3">Alternatif Lain:</h4>
+          <div className="flex flex-wrap gap-3 justify-center">
             <button
-              onClick={() => window.open(getPdfUrl(currentDocument), '_blank')}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+              onClick={() => {
+                const url = getPdfUrl(currentDocument);
+                // Gunakan URL langsung tanpa Google Viewer
+                window.open(url, '_blank');
+              }}
+              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm"
             >
-              <FileText className="h-4 w-4 mr-2" />
-              Buka di Tab Baru
+              Buka Langsung
             </button>
             <button
               onClick={() => {
+                const url = getPdfUrl(currentDocument);
+                // Gunakan PDF.js CDN yang lebih reliable
+                const pdfjsViewerUrl = `https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/web/viewer.html?file=${encodeURIComponent(url)}`;
+                window.open(pdfjsViewerUrl, '_blank');
+              }}
+              className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors text-sm"
+            >
+              Buka dengan PDF.js
+            </button>
+            <button
+              onClick={() => {
+                const url = getPdfUrl(currentDocument);
+                // Fallback ke browser default
+                const link = document.createElement('a');
+                link.href = url;
+                link.target = '_blank';
+                link.click();
+              }}
+              className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors text-sm"
+            >
+              Buka dengan Browser
+            </button>
+            <button
+              onClick={() => {
+                // Direct download sebagai fallback terakhir
                 const link = document.createElement('a');
                 link.href = getPdfUrl(currentDocument);
                 link.download = currentDocument.name;
                 link.click();
               }}
-              className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center"
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm"
             >
-              <Download className="h-4 w-4 mr-2" />
-              Download PDF
+              Download Langsung
             </button>
           </div>
           
-          {/* PDF iframe viewer with error handling */}
-          <div className="w-full">
-            <div className="relative">
-              {pdfLoading && (
-                <div className="absolute inset-0 bg-gray-100 rounded-lg flex items-center justify-center z-10">
-                  <div className="text-center">
-                    <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                    <p className="text-gray-600">Memuat PDF...</p>
-                  </div>
-                </div>
-              )}
-              
-              <iframe
-                src={`${getPdfUrl(currentDocument)}#toolbar=1&navpanes=1&scrollbar=1`}
-                width="100%"
-                height="600"
-                className="border border-gray-300 rounded-lg shadow-lg"
-                title="PDF Viewer"
-                onLoad={() => {
-                  console.log('PDF iframe loaded successfully');
-                  setPdfLoading(false);
-                  setPdfError(false);
-                }}
-                onError={() => {
-                  console.error('PDF iframe failed to load');
-                  setPdfLoading(false);
-                  setPdfError(true);
-                }}
-                sandbox="allow-same-origin allow-scripts allow-forms"
-              />
-              
-              {pdfError && (
-                <div className="absolute inset-0 bg-red-50 border-2 border-red-200 rounded-lg flex items-center justify-center z-10">
-                  <div className="text-center">
-                    <div className="text-red-600 text-lg font-medium mb-2">PDF tidak dapat dimuat</div>
-                    <p className="text-red-500 text-sm">Coba gunakan tombol alternatif di bawah</p>
-                  </div>
-                </div>
-              )}
-              
-              {/* Fallback message */}
-              <div className="mt-4 text-center text-sm text-gray-600">
-                <p>Jika PDF tidak tampil, gunakan tombol "Buka di Tab Baru" di atas.</p>
-                <p className="mt-2 text-xs text-gray-500">
-                  URL: {getPdfUrl(currentDocument)}
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          {/* Alternative viewer options */}
-          <div className="mt-6 text-center">
-            <h4 className="text-lg font-medium text-gray-900 mb-3">Alternatif Lain:</h4>
-            <div className="flex flex-wrap gap-3 justify-center">
-              <button
-                onClick={() => {
-                  const url = getPdfUrl(currentDocument);
-                  const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
-                  window.open(googleViewerUrl, '_blank');
-                }}
-                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm"
-              >
-                Buka dengan Google Viewer
-              </button>
-              <button
-                onClick={() => {
-                  const url = getPdfUrl(currentDocument);
-                  const pdfjsViewerUrl = `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(url)}`;
-                  window.open(pdfjsViewerUrl, '_blank');
-                }}
-                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors text-sm"
-              >
-                Buka dengan PDF.js Viewer
-              </button>
-            </div>
+          {/* Info tambahan */}
+          <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>Tips:</strong> Jika PDF tidak tampil, coba:
+            </p>
+            <ul className="text-xs text-blue-700 mt-2 list-disc list-inside space-y-1">
+              <li>Gunakan tombol "Download Langsung" untuk menyimpan file</li>
+              <li>Buka dengan browser default untuk melihat PDF</li>
+              <li>Pastikan koneksi internet stabil</li>
+            </ul>
           </div>
         </div>
       </div>
