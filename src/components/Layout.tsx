@@ -1,23 +1,23 @@
-import React, { ReactNode } from 'react';
-import { FileText, Upload, Search, Settings, LogOut, User as UserIcon } from 'lucide-react';
-import { User } from '../types';
+import React from 'react';
+import { FileText, Search, Upload, Settings, LogOut, User } from 'lucide-react';
+import { User as UserType } from '../types';
 
 interface LayoutProps {
-  children: ReactNode;
+  children: React.ReactNode;
   currentView: string;
   onViewChange: (view: string) => void;
-  user?: User | null;
-  onLogout?: () => void;
+  user: UserType | null;
+  onLogout: () => void;
 }
 
-export const Layout: React.FC<LayoutProps> = ({
-  children,
-  currentView,
-  onViewChange,
-  user,
-  onLogout,
+export const Layout: React.FC<LayoutProps> = ({ 
+  children, 
+  currentView, 
+  onViewChange, 
+  user, 
+  onLogout 
 }) => {
-  const navItems = [
+  const navigationItems = [
     { id: 'documents', label: 'Documents', icon: FileText },
     { id: 'search', label: 'Global Search', icon: Search },
     { id: 'upload', label: 'Upload', icon: Upload },
@@ -25,76 +25,82 @@ export const Layout: React.FC<LayoutProps> = ({
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-200/50 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
-          <div className="flex flex-col sm:flex-row justify-between items-center h-auto sm:h-16 py-2 sm:py-0 gap-2 sm:gap-0">
-            <div className="flex items-center">
-              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-2 rounded-lg mr-2 sm:mr-3">
-                <FileText className="h-6 w-6 text-white" />
+      <header className="bg-white/80 backdrop-blur-sm border-b border-white/20 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo and Title */}
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+                <FileText className="h-5 w-5 text-white" />
               </div>
-              <h1 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                BpsProvinsi Bali
-              </h1>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">BpsProvinsi Bali</h1>
+                <p className="text-xs text-gray-600">Document Management System</p>
+              </div>
             </div>
-            <div className="flex items-center space-x-2 sm:space-x-4">
-              {user ? (
-                <div className="flex items-center space-x-2 sm:space-x-3">
-                  <div className="flex items-center space-x-1 sm:space-x-2 bg-white/60 px-2 sm:px-3 py-1 rounded-full">
-                    <UserIcon className="h-4 w-4 text-gray-600" />
-                    <span className="text-xs sm:text-sm text-gray-700 font-medium">{user.username}</span>
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      user.role === 'admin' 
-                        ? 'bg-blue-100 text-blue-800' 
-                        : 'bg-green-100 text-green-800'
-                    }`}>
-                      {user.role}
-                    </span>
+
+            {/* User Menu */}
+            <div className="flex items-center space-x-4">
+              {user && (
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <User className="h-4 w-4 text-blue-600" />
                   </div>
+                  <span className="text-sm font-medium text-gray-700">{user.username}</span>
                   <button
                     onClick={onLogout}
-                    className="flex items-center space-x-1 text-gray-600 hover:text-gray-900 bg-white/60 hover:bg-white/80 px-2 sm:px-3 py-1 rounded-full transition-colors"
+                    className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                    title="Logout"
                   >
                     <LogOut className="h-4 w-4" />
-                    <span className="text-xs sm:text-sm">Logout</span>
                   </button>
-                </div>
-              ) : (
-                <div className="text-xs sm:text-sm text-gray-600 bg-white/60 px-2 sm:px-3 py-1 rounded-full">
-                  Document Management System
                 </div>
               )}
             </div>
           </div>
         </div>
       </header>
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8">
-        {/* Navigation */}
-        <nav className="mb-4 sm:mb-8">
-          <div className="flex flex-wrap gap-1 bg-white/60 backdrop-blur-sm p-1 rounded-xl shadow-sm border border-white/20 justify-center">
-            {navItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => onViewChange(item.id)}
-                className={`flex items-center px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 relative ${
-                  currentView === item.id
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-white/80'
-                }`}
-              >
-                <item.icon className="h-4 w-4 mr-1 sm:mr-2" />
-                {item.label}
-                {item.id === 'admin' && !user && (
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></div>
-                )}
-              </button>
-            ))}
+
+      {/* Navigation */}
+      <nav className="bg-white/60 backdrop-blur-sm border-b border-white/20 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex space-x-1">
+            {navigationItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = currentView === item.id;
+              const isAdmin = item.id === 'admin' && !user;
+              
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => onViewChange(item.id)}
+                  disabled={isAdmin}
+                  className={`flex items-center space-x-2 px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
+                    isActive
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
+                      : isAdmin
+                      ? 'text-gray-400 cursor-not-allowed'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-white/80'
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+                  {item.id === 'admin' && !user && (
+                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  )}
+                </button>
+              );
+            })}
           </div>
-        </nav>
-        {/* Main Content */}
-        <main>{children}</main>
-      </div>
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {children}
+      </main>
     </div>
   );
 };
